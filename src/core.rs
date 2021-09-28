@@ -184,3 +184,6 @@ impl Context {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FnDef(pub Symbol, pub Expr);

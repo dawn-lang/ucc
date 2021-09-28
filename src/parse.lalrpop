@@ -1,0 +1,65 @@
+// Copyright (c) 2021 Scott J Maddox
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+use crate::core::*;
+
+grammar(interner: &mut Interner);
+
+pub FnDef: FnDef = {
+    LBRACE FN <fid:IDENT> EQ <e:Expr> RBRACE
+        => FnDef(interner.get_or_intern(fid), e),
+}
+
+pub Expr: Expr = {
+    <mut es:SingleExpr*> => {
+        if es.len() == 0 {
+            Expr::Empty
+        } else {
+            fn recurse(es: &mut Vec<Expr>) -> Expr {
+                if es.len() == 1 {
+                    es.pop().unwrap()
+                } else {
+                    let e2 = es.pop().unwrap();
+                    Expr::Compose(Box::new(recurse(es)), Box::new(e2))
+                }
+            }
+            recurse(&mut es)
+        }
+    }
+}
+
+SingleExpr: Expr = {
+    SWAP => Expr::Intrinsic(Intrinsic::Swap),
+    CLONE => Expr::Intrinsic(Intrinsic::Clone),
+    DROP => Expr::Intrinsic(Intrinsic::Drop),
+    QUOTE => Expr::Intrinsic(Intrinsic::Quote),
+    COMPOSE => Expr::Intrinsic(Intrinsic::Compose),
+    APPLY => Expr::Intrinsic(Intrinsic::Apply),
+    IDENT => Expr::Call(interner.get_or_intern(<>)),
+    LBRACKET <Expr> RBRACKET => Expr::Quote(Box::new(<>)),
+    LPAREN <Expr> RPAREN,
+}
+
+match {
+    r"\s*" => { }, // skip whitespace
+    r"--[^\n\r]*[\n\r]*" => { }, // Skip `--` comments
+    r"\(" => LPAREN,
+    r"\)" => RPAREN,
+    r"\[" => LBRACKET,
+    r"\]" => RBRACKET,
+    r"\{" => LBRACE,
+    r"\}" => RBRACE,
+    r"=" => EQ,
+    r"swap" => SWAP,
+    r"clone" => CLONE,
+    r"drop" => DROP,
+    r"quote" => QUOTE,
+    r"compose" => COMPOSE,
+    r"apply" => APPLY,
+    r"fn" => FN,
+} else {
+    r"[_a-zA-Z][_a-zA-Z0-9]*" => IDENT,
+}

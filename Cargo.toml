@@ -9,3 +9,8 @@ authors = ["Scott J Maddox"]
 [dependencies]
 fxhash = "0.2"
 lasso = "0.6.0"
+lalrpop-util = "0.19"
+regex = "1"
+
+[build-dependencies]
+lalrpop = "0.19"
