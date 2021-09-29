@@ -8,6 +8,8 @@ pub mod core;
 #[cfg(test)]
 mod test_core;
 
+pub mod display;
+
 use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(pub parse);
 #[cfg(test)]

@@ -19,6 +19,12 @@ pub(crate) SmallStepAssertion: (ValueStack, Expr, ValueStack, Expr) = {
     }
 }
 
+pub(crate) BigStepAssertion: (ValueStack, Expr, ValueStack, Expr) = {
+    <ivs: ValueStack> <ie: Expr> DDARROW <ovs: ValueStack> <oe: Expr> => {
+        (ivs, ie, ovs, oe)
+    }
+}
+
 pub ValueStack: ValueStack = {
     BRA <vs:Value*> KET => ValueStack(vs),
 }
@@ -70,6 +76,7 @@ match {
     r"⟨" => BRA,
     r"⟩" => KET,
     r"⟶" => LONG_RARROW,
+    r"⇓" => DDARROW,
     r"swap" => SWAP,
     r"clone" => CLONE,
     r"drop" => DROP,

@@ -151,8 +151,12 @@ impl Context {
                             expected: 2,
                         })
                     } else {
-                        let e2 = vs.0.pop().unwrap().unquote();
-                        let e1 = vs.0.pop().unwrap().unquote();
+                        let mut e2 = vs.0.pop().unwrap().unquote();
+                        let mut e1 = vs.0.pop().unwrap().unquote();
+                        while let Expr::Compose(e21, e22) = *e2 {
+                            e1 = Box::new(Expr::Compose(e1, e21));
+                            e2 = e22;
+                        }
                         vs.0.push(Value::Quote(Box::new(Expr::Compose(e1, e2))));
                         *e = Expr::Empty;
                         Ok(())
