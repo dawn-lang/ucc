@@ -195,5 +195,17 @@ impl Context {
     }
 }
 
+//////////////////////////
+// Function Definitions //
+//////////////////////////
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FnDef(pub Symbol, pub Expr);
+
+impl Context {
+    pub fn define_fn(&mut self, fn_def: FnDef) -> Option<FnDef> {
+        let result = self.fns.remove(&fn_def.0).map(|e| FnDef(fn_def.0, e));
+        self.fns.insert(fn_def.0, fn_def.1);
+        result
+    }
+}

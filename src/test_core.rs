@@ -28,3 +28,22 @@ fn test_small_step() {
         assert_eq!(ssa.1, ssa.3, "Failed on {}", case);
     }
 }
+
+#[test]
+fn test_define_fn() {
+    let mut ctx = Context::default();
+    let sym = Symbol(ctx.interner.get_or_intern_static("foo"));
+    let fn_def1 = FnDefParser::new()
+        .parse(&mut ctx.interner, "{fn foo = e1}")
+        .unwrap();
+    let e1 = ExprParser::new().parse(&mut ctx.interner, "e1").unwrap();
+    let fn_def2 = FnDefParser::new()
+        .parse(&mut ctx.interner, "{fn foo = e2}")
+        .unwrap();
+    let e2 = ExprParser::new().parse(&mut ctx.interner, "e2").unwrap();
+    assert_eq!(ctx.fns.get(&sym), None);
+    assert_eq!(ctx.define_fn(fn_def1), None);
+    assert_eq!(ctx.fns.get(&sym), Some(&e1));
+    assert_eq!(ctx.define_fn(fn_def2), Some(FnDef(sym, e1)));
+    assert_eq!(ctx.fns.get(&sym), Some(&e2));
+}
