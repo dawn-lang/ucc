@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use crate::core::{Expr, Interner, Intrinsic, Map, Symbol, Value, ValueStack};
+use crate::core::{Expr, Interner, Intrinsic, Symbol, Value, ValueStack};
 use std::fmt;
 
 pub(crate) type ResolvedSymbol = String;
@@ -15,7 +15,7 @@ pub enum ResolvedExpr {
     Intrinsic(Intrinsic),
     Call(ResolvedSymbol),
     Quote(Box<ResolvedExpr>),
-    Compose(Box<ResolvedExpr>, Box<ResolvedExpr>),
+    Compose(Vec<ResolvedExpr>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,14 +42,12 @@ impl Resolve for Expr {
     type Output = ResolvedExpr;
     fn resolve(&self, interner: &Interner) -> Self::Output {
         match self {
-            Expr::Empty => ResolvedExpr::Empty,
             Expr::Intrinsic(i) => ResolvedExpr::Intrinsic(*i),
             Expr::Call(sym) => ResolvedExpr::Call(sym.resolve(interner)),
             Expr::Quote(e) => ResolvedExpr::Quote(Box::new(e.resolve(interner))),
-            Expr::Compose(e1, e2) => ResolvedExpr::Compose(
-                Box::new(e1.resolve(interner)),
-                Box::new(e2.resolve(interner)),
-            ),
+            Expr::Compose(es) => {
+                ResolvedExpr::Compose(es.iter().map(|e| e.resolve(interner)).collect())
+            }
         }
     }
 }
@@ -99,14 +97,23 @@ impl fmt::Display for ResolvedExpr {
             ResolvedExpr::Intrinsic(i) => i.fmt(f),
             ResolvedExpr::Call(sym) => sym.fmt(f),
             ResolvedExpr::Quote(e) => write!(f, "[{}]", e),
-            ResolvedExpr::Compose(e1, e2) => {
-                write!(f, "{} ", e1)?;
-                if e2.is_compose() {
-                    write!(f, "({})", e2)
-                } else {
-                    write!(f, "{}", e2)
+            ResolvedExpr::Compose(es) => {
+                if let Some(e) = es.first() {
+                    if e.is_compose() {
+                        write!(f, "({})", e)?;
+                    } else {
+                        write!(f, "{}", e)?;
+                    }
                 }
-                // write!(f, "{} {}", e1, e2)
+                for e in es.iter().skip(1) {
+                    " ".fmt(f)?;
+                    if e.is_compose() {
+                        write!(f, "({})", e)?;
+                    } else {
+                        write!(f, "{}", e)?;
+                    }
+                }
+                Ok(())
             }
         }
     }

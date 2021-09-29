@@ -34,21 +34,9 @@ pub Value: Value = {
 }
 
 pub Expr: Expr = {
-    <mut es:SingleExpr*> => {
-        if es.len() == 0 {
-            Expr::Empty
-        } else {
-            fn recurse(es: &mut Vec<Expr>) -> Expr {
-                if es.len() == 1 {
-                    es.pop().unwrap()
-                } else {
-                    let e2 = es.pop().unwrap();
-                    Expr::Compose(Box::new(recurse(es)), Box::new(e2))
-                }
-            }
-            recurse(&mut es)
-        }
-    }
+    <SingleExpr*> => { let mut es = <>;
+                       if es.len() == 1 { es.drain(..).next().unwrap() }
+                       else { Expr::Compose(es) } }
 }
 
 SingleExpr: Expr = {

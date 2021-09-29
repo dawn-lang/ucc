@@ -24,7 +24,7 @@ fn test_parse_expr_empty() {
     let interner = &mut Interner::default();
     let input = "";
     let e = ExprParser::new().parse(interner, input).unwrap();
-    assert_eq!(e, Expr::Empty);
+    assert_eq!(e, Expr::default());
 }
 
 #[test]
@@ -58,10 +58,10 @@ fn test_parse_expr_call2() {
     let inputs = &["foo bar", "(foo bar)", "((foo bar))"];
     for input in inputs {
         let e = ExprParser::new().parse(interner, input).unwrap();
-        let e2 = Expr::Compose(
-            Box::new(Expr::Call(Symbol(interner.get("foo").unwrap()))),
-            Box::new(Expr::Call(Symbol(interner.get("bar").unwrap()))),
-        );
+        let e2 = Expr::Compose(vec![
+            Expr::Call(Symbol(interner.get("foo").unwrap())),
+            Expr::Call(Symbol(interner.get("bar").unwrap())),
+        ]);
         assert_eq!(e, e2);
     }
 }
@@ -83,10 +83,10 @@ fn test_parse_expr_quote_call2() {
     let inputs = &["[foo bar]", "[(foo bar)]", "[((foo bar))]"];
     for input in inputs {
         let e = ExprParser::new().parse(interner, input).unwrap();
-        let e2 = Expr::Quote(Box::new(Expr::Compose(
-            Box::new(Expr::Call(Symbol(interner.get("foo").unwrap()))),
-            Box::new(Expr::Call(Symbol(interner.get("bar").unwrap()))),
-        )));
+        let e2 = Expr::Quote(Box::new(Expr::Compose(vec![
+            Expr::Call(Symbol(interner.get("foo").unwrap())),
+            Expr::Call(Symbol(interner.get("bar").unwrap())),
+        ])));
         assert_eq!(e, e2);
     }
 }

@@ -27,11 +27,10 @@ pub struct Symbol(pub(crate) lasso::Spur);
 /// Expressions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    Empty,
     Intrinsic(Intrinsic),
     Call(Symbol),
     Quote(Box<Expr>),
-    Compose(Box<Expr>, Box<Expr>),
+    Compose(Vec<Expr>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +41,12 @@ pub enum Intrinsic {
     Quote,
     Compose,
     Apply,
+}
+
+impl Default for Expr {
+    fn default() -> Self {
+        Expr::Compose(vec![])
+    }
 }
 
 ///////////////
@@ -89,7 +94,6 @@ impl Default for Context {
 impl Context {
     pub fn small_step(&mut self, vs: &mut ValueStack, e: &mut Expr) -> Result<(), EvalError> {
         match e {
-            Expr::Empty => Err(EvalError::EmptyExpr),
             Expr::Intrinsic(intr) => match intr {
                 Intrinsic::Swap => {
                     if vs.0.len() < 2 {
@@ -100,7 +104,7 @@ impl Context {
                     } else {
                         let v = vs.0.remove(vs.0.len() - 2);
                         vs.0.push(v);
-                        *e = Expr::Empty;
+                        *e = Expr::default();
                         Ok(())
                     }
                 }
@@ -112,7 +116,7 @@ impl Context {
                         })
                     } else {
                         vs.0.push(vs.0.last().unwrap().clone());
-                        *e = Expr::Empty;
+                        *e = Expr::default();
                         Ok(())
                     }
                 }
@@ -124,7 +128,7 @@ impl Context {
                         })
                     } else {
                         vs.0.pop();
-                        *e = Expr::Empty;
+                        *e = Expr::default();
                         Ok(())
                     }
                 }
@@ -140,7 +144,7 @@ impl Context {
                             Value::Quote(e) => Expr::Quote(e),
                         };
                         vs.0.push(Value::Quote(Box::new(qe)));
-                        *e = Expr::Empty;
+                        *e = Expr::default();
                         Ok(())
                     }
                 }
@@ -151,14 +155,25 @@ impl Context {
                             expected: 2,
                         })
                     } else {
-                        let mut e2 = vs.0.pop().unwrap().unquote();
-                        let mut e1 = vs.0.pop().unwrap().unquote();
-                        while let Expr::Compose(e21, e22) = *e2 {
-                            e1 = Box::new(Expr::Compose(e1, e21));
-                            e2 = e22;
-                        }
-                        vs.0.push(Value::Quote(Box::new(Expr::Compose(e1, e2))));
-                        *e = Expr::Empty;
+                        let e2 = vs.0.pop().unwrap().unquote();
+                        let e1 = vs.0.pop().unwrap().unquote();
+                        let new_es = match (*e1, *e2) {
+                            (Expr::Compose(mut e1s), Expr::Compose(mut e2s)) => {
+                                e1s.extend(e2s.drain(..));
+                                e1s
+                            }
+                            (Expr::Compose(mut e1s), e2) => {
+                                e1s.push(e2);
+                                e1s
+                            }
+                            (e1, Expr::Compose(mut e2s)) => {
+                                e2s.insert(0, e1);
+                                e2s
+                            }
+                            (e1, e2) => vec![e1, e2],
+                        };
+                        vs.0.push(Value::Quote(Box::new(Expr::Compose(new_es))));
+                        *e = Expr::default();
                         Ok(())
                     }
                 }
@@ -185,15 +200,27 @@ impl Context {
             }
             Expr::Quote(qe) => {
                 vs.0.push(Value::Quote(qe.clone()));
-                *e = Expr::Empty;
+                *e = Expr::default();
                 Ok(())
             }
-            Expr::Compose(e1, e2) => {
-                self.small_step(vs, e1)?;
-                if **e1 == Expr::Empty {
-                    *e = (**e2).clone()
+            Expr::Compose(ref mut es) => {
+                let es_len = es.len();
+                if es_len == 0 {
+                    Err(EvalError::EmptyExpr)
+                } else {
+                    let e1 = es.first_mut().unwrap();
+                    self.small_step(vs, e1)?;
+                    match e1 {
+                        Expr::Compose(e1s) => {
+                            let mut new_es = Vec::with_capacity(e1s.len() + es_len - 1);
+                            new_es.extend(e1s.drain(..));
+                            new_es.extend(es.drain(1..));
+                            *e = Expr::Compose(new_es);
+                        }
+                        _ => {}
+                    }
+                    Ok(())
                 }
-                Ok(())
             }
         }
     }
