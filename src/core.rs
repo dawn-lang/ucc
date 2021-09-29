@@ -58,13 +58,14 @@ impl Value {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ValueStack(Vec<Value>);
+pub struct ValueStack(pub(crate) Vec<Value>);
 
 pub struct Context {
-    interner: Interner,
-    fns: Map<Symbol, Expr>,
+    pub(crate) interner: Interner,
+    pub(crate) fns: Map<Symbol, Expr>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
     EmptyExpr,
     TooFewValues { available: usize, expected: usize },
@@ -95,6 +96,7 @@ impl Context {
                     } else {
                         let v = vs.0.remove(vs.0.len() - 2);
                         vs.0.push(v);
+                        *e = Expr::Empty;
                         Ok(())
                     }
                 }
@@ -106,6 +108,7 @@ impl Context {
                         })
                     } else {
                         vs.0.push(vs.0.last().unwrap().clone());
+                        *e = Expr::Empty;
                         Ok(())
                     }
                 }
@@ -117,6 +120,7 @@ impl Context {
                         })
                     } else {
                         vs.0.pop();
+                        *e = Expr::Empty;
                         Ok(())
                     }
                 }
@@ -128,10 +132,11 @@ impl Context {
                         })
                     } else {
                         let v = vs.0.pop().unwrap();
-                        let e = match v {
+                        let qe = match v {
                             Value::Quote(e) => Expr::Quote(e),
                         };
-                        vs.0.push(Value::Quote(Box::new(e)));
+                        vs.0.push(Value::Quote(Box::new(qe)));
+                        *e = Expr::Empty;
                         Ok(())
                     }
                 }
@@ -145,18 +150,19 @@ impl Context {
                         let e2 = vs.0.pop().unwrap().unquote();
                         let e1 = vs.0.pop().unwrap().unquote();
                         vs.0.push(Value::Quote(Box::new(Expr::Compose(e1, e2))));
+                        *e = Expr::Empty;
                         Ok(())
                     }
                 }
                 Intrinsic::Apply => {
-                    if vs.0.len() < 2 {
+                    if vs.0.len() < 1 {
                         Err(EvalError::TooFewValues {
                             available: vs.0.len(),
-                            expected: 2,
+                            expected: 1,
                         })
                     } else {
                         let e1 = vs.0.pop().unwrap().unquote();
-                        *e = Expr::Compose(e1, Box::new(e.clone()));
+                        *e = *e1;
                         Ok(())
                     }
                 }

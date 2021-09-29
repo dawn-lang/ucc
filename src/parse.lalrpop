@@ -13,6 +13,20 @@ pub FnDef: FnDef = {
         => FnDef(interner.get_or_intern(fid), e),
 }
 
+pub(crate) SmallStepAssertion: (ValueStack, Expr, ValueStack, Expr) = {
+    <ivs: ValueStack> <ie: Expr> LONG_RARROW <ovs: ValueStack> <oe: Expr> => {
+        (ivs, ie, ovs, oe)
+    }
+}
+
+pub ValueStack: ValueStack = {
+    BRA <vs:Value*> KET => ValueStack(vs),
+}
+
+pub Value: Value = {
+    LBRACKET <Expr> RBRACKET => Value::Quote(Box::new(<>)),
+}
+
 pub Expr: Expr = {
     <mut es:SingleExpr*> => {
         if es.len() == 0 {
@@ -53,6 +67,9 @@ match {
     r"\{" => LBRACE,
     r"\}" => RBRACE,
     r"=" => EQ,
+    r"⟨" => BRA,
+    r"⟩" => KET,
+    r"⟶" => LONG_RARROW,
     r"swap" => SWAP,
     r"clone" => CLONE,
     r"drop" => DROP,
