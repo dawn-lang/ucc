@@ -69,6 +69,8 @@ fn test_big_step() {
         "{fn n3 = [clone] n2 [compose] n2 apply}",
         "{fn n4 = [clone] n3 [compose] n3 apply}",
         "{fn succ = [[clone]] swap clone [[compose]] swap [apply] compose5}",
+        "{fn add = [succ] swap apply}",
+        "{fn mul = [n0] rotate3 quote [add] compose rotate3 apply}"
     ];
     let cases = [
         "⟨[e1] [e2]⟩ swap swap ⇓ ⟨[e1] [e2]⟩",
@@ -88,6 +90,24 @@ fn test_big_step() {
         "⟨[e]⟩ n3 ⇓ ⟨⟩ e e e",
         "⟨[e]⟩ n4 ⇓ ⟨⟩ e e e e",
         "⟨[n0]⟩ succ ⇓ ⟨[[clone] n0 [compose] n0 apply]⟩",
+        "⟨[n1]⟩ succ ⇓ ⟨[[clone] n1 [compose] n1 apply]⟩",
+        "⟨[e] [n0]⟩ apply ⇓ ⟨⟩",
+        "⟨[e] [n0]⟩ succ apply ⇓ ⟨⟩ e",
+        "⟨[e] [n0]⟩ succ succ apply ⇓ ⟨⟩ e e",
+        "⟨[e] [n0] [n0]⟩ add apply ⇓ ⟨⟩",
+        "⟨[e] [n0] [n1]⟩ add apply ⇓ ⟨⟩ e",
+        "⟨[e] [n1] [n0]⟩ add apply ⇓ ⟨⟩ e",
+        "⟨[e] [n1] [n1]⟩ add apply ⇓ ⟨⟩ e e",
+        "⟨[e] [n1] [n2]⟩ add apply ⇓ ⟨⟩ e e e",
+        "⟨[e] [n2] [n1]⟩ add apply ⇓ ⟨⟩ e e e",
+        "⟨[e] [n2] [n2]⟩ add apply ⇓ ⟨⟩ e e e e",
+        "⟨[e] [n0] [n0]⟩ mul apply ⇓ ⟨⟩",
+        "⟨[e] [n0] [n1]⟩ mul apply ⇓ ⟨⟩",
+        "⟨[e] [n1] [n0]⟩ mul apply ⇓ ⟨⟩",
+        "⟨[e] [n1] [n1]⟩ mul apply ⇓ ⟨⟩ e",
+        "⟨[e] [n1] [n2]⟩ mul apply ⇓ ⟨⟩ e e",
+        "⟨[e] [n2] [n1]⟩ mul apply ⇓ ⟨⟩ e e",
+        "⟨[e] [n2] [n2]⟩ mul apply ⇓ ⟨⟩ e e e e",
     ];
     let mut ctx = Context::default();
     for fn_def_src in fn_def_srcs.iter() {

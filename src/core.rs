@@ -157,7 +157,7 @@ impl Context {
                     } else {
                         let e2 = vs.0.pop().unwrap().unquote();
                         let e1 = vs.0.pop().unwrap().unquote();
-                        let new_es = match (*e1, *e2) {
+                        let mut new_es = match (*e1, *e2) {
                             (Expr::Compose(mut e1s), Expr::Compose(mut e2s)) => {
                                 e1s.extend(e2s.drain(..));
                                 e1s
@@ -172,7 +172,12 @@ impl Context {
                             }
                             (e1, e2) => vec![e1, e2],
                         };
-                        vs.0.push(Value::Quote(Box::new(Expr::Compose(new_es))));
+                        let new_e = if new_es.len() == 1 {
+                            new_es.drain(..).next().unwrap()
+                        } else {
+                            Expr::Compose(new_es)
+                        };
+                        vs.0.push(Value::Quote(Box::new(new_e)));
                         *e = Expr::default();
                         Ok(())
                     }
@@ -215,7 +220,12 @@ impl Context {
                             let mut new_es = Vec::with_capacity(e1s.len() + es_len - 1);
                             new_es.extend(e1s.drain(..));
                             new_es.extend(es.drain(1..));
-                            *e = Expr::Compose(new_es);
+                            let new_e = if new_es.len() == 1 {
+                                new_es.drain(..).next().unwrap()
+                            } else {
+                                Expr::Compose(new_es)
+                            };
+                            *e = new_e;
                         }
                         _ => {}
                     }
