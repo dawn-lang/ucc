@@ -10,7 +10,7 @@ grammar(interner: &mut Interner);
 
 pub FnDef: FnDef = {
     LBRACE FN <fid:IDENT> EQ <e:Expr> RBRACE
-        => FnDef(interner.get_or_intern(fid), e),
+        => FnDef(Symbol(interner.get_or_intern(fid)), e),
 }
 
 pub(crate) SmallStepAssertion: (ValueStack, Expr, ValueStack, Expr) = {
@@ -52,7 +52,7 @@ SingleExpr: Expr = {
     QUOTE => Expr::Intrinsic(Intrinsic::Quote),
     COMPOSE => Expr::Intrinsic(Intrinsic::Compose),
     APPLY => Expr::Intrinsic(Intrinsic::Apply),
-    IDENT => Expr::Call(interner.get_or_intern(<>)),
+    IDENT => Expr::Call(Symbol(interner.get_or_intern(<>))),
     LBRACKET <Expr> RBRACKET => Expr::Quote(Box::new(<>)),
     LPAREN <Expr> RPAREN,
 }

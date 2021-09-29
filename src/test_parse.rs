@@ -11,11 +11,11 @@ use crate::parse::*;
 fn test_parse_fn_def() {
     let interner = &mut Interner::default();
     let cases = &[("{fn foo = }", "foo", "")];
-    for (fn_def_src, fn_id_src, e_src) in cases {
+    for (fn_def_src, sym_src, e_src) in cases {
         let fn_def = FnDefParser::new().parse(interner, fn_def_src).unwrap();
-        let fn_id = interner.get_or_intern_static(fn_id_src);
+        let sym = Symbol(interner.get_or_intern_static(sym_src));
         let e = ExprParser::new().parse(interner, e_src).unwrap();
-        assert_eq!(fn_def, FnDef(fn_id, e), "{}", fn_def_src);
+        assert_eq!(fn_def, FnDef(sym, e), "{}", fn_def_src);
     }
 }
 
@@ -49,7 +49,7 @@ fn test_parse_expr_call() {
     let interner = &mut Interner::default();
     let input = "foo";
     let e = ExprParser::new().parse(interner, input).unwrap();
-    assert_eq!(e, Expr::Call(interner.get("foo").unwrap()));
+    assert_eq!(e, Expr::Call(Symbol(interner.get("foo").unwrap())));
 }
 
 #[test]
@@ -59,8 +59,8 @@ fn test_parse_expr_call2() {
     for input in inputs {
         let e = ExprParser::new().parse(interner, input).unwrap();
         let e2 = Expr::Compose(
-            Box::new(Expr::Call(interner.get("foo").unwrap())),
-            Box::new(Expr::Call(interner.get("bar").unwrap())),
+            Box::new(Expr::Call(Symbol(interner.get("foo").unwrap()))),
+            Box::new(Expr::Call(Symbol(interner.get("bar").unwrap()))),
         );
         assert_eq!(e, e2);
     }
@@ -72,7 +72,7 @@ fn test_parse_expr_quote_call() {
     let inputs = &["[foo]", "[(foo)]", "[((foo))]"];
     for input in inputs {
         let e = ExprParser::new().parse(interner, input).unwrap();
-        let e2 = Expr::Quote(Box::new(Expr::Call(interner.get("foo").unwrap())));
+        let e2 = Expr::Quote(Box::new(Expr::Call(Symbol(interner.get("foo").unwrap()))));
         assert_eq!(e, e2);
     }
 }
@@ -84,8 +84,8 @@ fn test_parse_expr_quote_call2() {
     for input in inputs {
         let e = ExprParser::new().parse(interner, input).unwrap();
         let e2 = Expr::Quote(Box::new(Expr::Compose(
-            Box::new(Expr::Call(interner.get("foo").unwrap())),
-            Box::new(Expr::Call(interner.get("bar").unwrap())),
+            Box::new(Expr::Call(Symbol(interner.get("foo").unwrap()))),
+            Box::new(Expr::Call(Symbol(interner.get("bar").unwrap()))),
         )));
         assert_eq!(e, e2);
     }

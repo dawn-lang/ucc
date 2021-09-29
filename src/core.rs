@@ -4,8 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-pub use lasso::Rodeo as Interner;
-pub use lasso::Spur as Symbol;
+pub(crate) use lasso::Rodeo as Interner;
+use std::hash::Hash;
 
 pub(crate) type Map<K, V> = fxhash::FxHashMap<K, V>;
 
@@ -15,6 +15,10 @@ macro_rules! map {
         std::iter::Iterator::collect(std::array::IntoIter::new([$(($k, $v),)*]))
     };
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct Symbol(pub(crate) lasso::Spur);
 
 ////////////
 // Syntax //
