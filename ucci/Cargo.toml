@@ -1,0 +1,11 @@
+[package]
+name = "ucci"
+version = "0.1.0"
+edition = "2018"
+authors = ["Scott J Maddox"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ucc = { path = "../ucc" }
+linefeed = "0.6"
