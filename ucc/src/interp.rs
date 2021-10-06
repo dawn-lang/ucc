@@ -7,7 +7,7 @@
 use crate::core::*;
 use crate::display::*;
 use crate::parse::*;
-use std::fmt;
+use std::io;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum InterpItem {
@@ -84,7 +84,7 @@ impl Default for Interp {
 }
 
 impl Interp {
-    pub fn interp(&mut self, cell: &str, w: &mut dyn fmt::Write) -> fmt::Result {
+    pub fn interp(&mut self, cell: &str, w: &mut dyn io::Write) -> io::Result<()> {
         match InterpCommandParser::new().parse(&mut self.ctx.interner, cell) {
             Err(err) => {
                 // TODO: better error messages
@@ -163,13 +163,13 @@ impl Interp {
                     .collect();
                 names.sort_unstable();
                 if let Some(name) = names.first() {
-                    w.write_str(name.as_str())?;
+                    w.write_all(name.as_bytes())?;
                 }
                 for name in names.iter().skip(1) {
-                    w.write_str(" ")?;
-                    w.write_str(name.as_str())?;
+                    w.write_all(" ".as_bytes())?;
+                    w.write_all(name.as_bytes())?;
                 }
-                w.write_str("\n")?;
+                w.write_all("\n".as_bytes())?;
                 Ok(())
             }
             Ok(InterpCommand::Drop) => {
@@ -184,7 +184,7 @@ impl Interp {
                 *self = Interp::default();
                 w.write_fmt(format_args!("Reset.\n"))
             }
-            Ok(InterpCommand::Help) => w.write_str(HELP),
+            Ok(InterpCommand::Help) => w.write_all(HELP.as_bytes()),
         }
     }
 }

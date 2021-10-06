@@ -62,12 +62,12 @@ fn test_interp_interp() {
     ];
     for session in sessions {
         let mut interp = Interp::default();
-        let mut output = String::default();
+        let mut output = Vec::default();
         for &(input, expected_output) in session {
             output.clear();
             interp.interp(input, &mut output).unwrap();
             assert_eq!(
-                output.as_str(),
+                std::str::from_utf8(&output[..]).unwrap(),
                 expected_output,
                 "Failed on {:?}",
                 (input, expected_output)

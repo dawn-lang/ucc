@@ -6,11 +6,11 @@
 
 use linefeed::{Interface, ReadResult};
 use std::error::Error;
-use ucc::interp::*;
+use std::io::stdout;
+use ucc::interp::Interp;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut interp = Interp::default();
-    let mut out_buf = String::default();
 
     println!("Untyped Concatenative Calculus Interpreter (UCCI)");
     println!("Type \":help\" to see the available commands.");
@@ -18,9 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     reader.set_prompt("ucci> ")?;
     while let ReadResult::Input(input) = reader.read_line()? {
         reader.add_history(input.clone());
-        out_buf.clear();
-        interp.interp(input.as_str(), &mut out_buf).unwrap();
-        println!("{}", out_buf);
+        interp.interp(input.as_str(), &mut stdout()).unwrap();
     }
     Ok(())
 }
