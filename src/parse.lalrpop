@@ -5,12 +5,44 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use crate::core::*;
+use crate::interp::*;
 
 grammar(interner: &mut Interner);
 
+pub(crate) InterpCommand: InterpCommand = {
+    <InterpItems> => InterpCommand::Eval(<>),
+    COLON_TRACE <Expr> => InterpCommand::Trace(<>),
+    COLON_SHOW <Symbol> => InterpCommand::Show(<>),
+    COLON_LIST => InterpCommand::List,
+    COLON_DROP => InterpCommand::Drop,
+    COLON_CLEAR => InterpCommand::Clear,
+    COLON_RESET => InterpCommand::Reset,
+    COLON_HELP => InterpCommand::Help,
+}
+
+pub(crate) InterpItems: Vec<InterpItem> = {
+    <pairs:(Expr FnDef)*> <last_e:Expr> => {
+        let mut is = vec![];
+        for (e, fn_def) in pairs {
+            if e != Expr::default() {
+                is.push(InterpItem::Expr(e));
+            }
+            is.push(InterpItem::FnDef(fn_def));
+        }
+        if last_e != Expr::default() {
+            is.push(InterpItem::Expr(last_e));
+        }
+        is
+    }
+}
+
 pub FnDef: FnDef = {
-    LBRACE FN <fid:IDENT> EQ <e:Expr> RBRACE
-        => FnDef(Symbol(interner.get_or_intern(fid)), e),
+    LBRACE FN <sym:Symbol> EQ <e:Expr> RBRACE
+        => FnDef(sym, e),
+}
+
+pub(crate) Symbol: Symbol = {
+    IDENT => Symbol(interner.get_or_intern(<>))
 }
 
 pub(crate) SmallStepAssertion: (ValueStack, Expr, ValueStack, Expr) = {
@@ -34,9 +66,13 @@ pub Value: Value = {
 }
 
 pub Expr: Expr = {
-    <SingleExpr*> => { let mut es = <>;
-                       if es.len() == 1 { es.drain(..).next().unwrap() }
-                       else { Expr::Compose(es) } }
+    <mut es:SingleExpr*> => {
+        if es.len() == 1 {
+            es.drain(..).next().unwrap()
+        } else {
+            Expr::Compose(es)
+        }
+    },
 }
 
 SingleExpr: Expr = {
@@ -72,6 +108,14 @@ match {
     r"compose" => COMPOSE,
     r"apply" => APPLY,
     r"fn" => FN,
+    r":eval" => COLON_EVAL,
+    r":trace" => COLON_TRACE,
+    r":show" => COLON_SHOW,
+    r":list" => COLON_LIST,
+    r":drop" => COLON_DROP,
+    r":clear" => COLON_CLEAR,
+    r":reset" => COLON_RESET,
+    r":help" => COLON_HELP,
 } else {
     r"[_a-zA-Z][_a-zA-Z0-9]*" => IDENT,
 }

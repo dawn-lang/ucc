@@ -10,6 +10,10 @@ mod test_core;
 
 pub mod display;
 
+pub mod interp;
+#[cfg(test)]
+mod test_interp;
+
 use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(pub parse);
 #[cfg(test)]

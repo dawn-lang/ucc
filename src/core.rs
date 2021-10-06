@@ -66,7 +66,7 @@ impl Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ValueStack(pub(crate) Vec<Value>);
 
 pub struct Context {
@@ -76,7 +76,6 @@ pub struct Context {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EvalError {
-    EmptyExpr,
     TooFewValues { available: usize, expected: usize },
     UndefinedFn(Symbol),
 }
@@ -211,7 +210,7 @@ impl Context {
             Expr::Compose(ref mut es) => {
                 let es_len = es.len();
                 if es_len == 0 {
-                    Err(EvalError::EmptyExpr)
+                    Ok(())
                 } else {
                     let e1 = es.first_mut().unwrap();
                     self.small_step(vs, e1)?;
@@ -233,6 +232,13 @@ impl Context {
                 }
             }
         }
+    }
+
+    pub fn eval(&mut self, vs: &mut ValueStack, e: &mut Expr) -> Result<(), EvalError> {
+        while e != &Expr::default() {
+            self.small_step(vs, e)?;
+        }
+        Ok(())
     }
 }
 
