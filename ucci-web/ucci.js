@@ -46,7 +46,23 @@ Untyped Concatenative Calculus Interpreter (UCCI)
 Type ":help" to see the available commands.
 ` + PROMPT;
 
+  function write_output(output) {
+    textarea.value += output;
+    textarea.scrollTop = textarea.scrollHeight;
+  }
+
   let ucci = new Ucci();
+
+  function step() {
+    if (ucci.is_done()) {
+      textarea.value += PROMPT;
+      textarea.scrollTop = textarea.scrollHeight;
+    } else {
+      ucci.interp_step(write_output);
+      setTimeout(step);
+    }
+  }
+
   textarea.addEventListener("keydown", (ev) => {
     if (ev.key == "Enter") {
       if (
@@ -54,15 +70,13 @@ Type ":help" to see the available commands.
         textarea.selectionEnd === textarea.value.length
       ) {
         ev.preventDefault();
+        textarea.value += "\n";
         let input = textarea.value.slice(
           textarea.value.lastIndexOf(PROMPT) + PROMPT.length,
           textarea.selectionEnd
         );
-        ucci.interp(
-          input,
-          (output) => (textarea.value += "\n" + output + PROMPT)
-        );
-        textarea.scrollTop = textarea.scrollHeight;
+        ucci.interp_start(input, write_output);
+        setTimeout(step);
       }
     }
   });
