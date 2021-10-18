@@ -2,4 +2,5 @@
 members = [
     "ucc",
     "ucci",
+    "ucci-web",
 ]
