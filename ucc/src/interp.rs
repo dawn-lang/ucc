@@ -88,7 +88,7 @@ impl Interp {
         match InterpCommandParser::new().parse(&mut self.ctx.interner, cell) {
             Err(err) => {
                 // TODO: better error messages
-                w.write_fmt(format_args!("{:?}\n", err))
+                w.write_fmt(format_args!("{:?}\n", err))?;
             }
             Ok(InterpCommand::Eval(is)) => {
                 for i in is {
@@ -120,8 +120,8 @@ impl Interp {
                             }
                         }
                     }
+                    w.flush()?;
                 }
-                Ok(())
             }
             Ok(InterpCommand::Trace(mut e)) => {
                 w.write_fmt(format_args!(
@@ -140,8 +140,8 @@ impl Interp {
                         self.vs.resolve(&self.ctx.interner),
                         e.resolve(&self.ctx.interner)
                     ))?;
+                    w.flush()?;
                 }
-                Ok(())
             }
             Ok(InterpCommand::Show(sym)) => {
                 if let Some(e) = self.ctx.fns.get(&sym) {
@@ -149,9 +149,9 @@ impl Interp {
                         "{{fn {} = {}}}\n",
                         sym.resolve(&self.ctx.interner),
                         e.resolve(&self.ctx.interner)
-                    ))
+                    ))?;
                 } else {
-                    w.write_fmt(format_args!("Not defined.\n"))
+                    w.write_fmt(format_args!("Not defined.\n"))?;
                 }
             }
             Ok(InterpCommand::List) => {
@@ -170,21 +170,23 @@ impl Interp {
                     w.write_all(name.as_bytes())?;
                 }
                 w.write_all("\n".as_bytes())?;
-                Ok(())
             }
             Ok(InterpCommand::Drop) => {
                 self.vs = ValueStack::default();
-                w.write_fmt(format_args!("Values dropped.\n"))
+                w.write_fmt(format_args!("Values dropped.\n"))?;
             }
             Ok(InterpCommand::Clear) => {
                 self.ctx.fns.clear();
-                w.write_fmt(format_args!("Definitions cleared.\n"))
+                w.write_fmt(format_args!("Definitions cleared.\n"))?;
             }
             Ok(InterpCommand::Reset) => {
                 *self = Interp::default();
-                w.write_fmt(format_args!("Reset.\n"))
+                w.write_fmt(format_args!("Reset.\n"))?;
             }
-            Ok(InterpCommand::Help) => w.write_all(HELP.as_bytes()),
+            Ok(InterpCommand::Help) => {
+                w.write_all(HELP.as_bytes())?;
+            }
         }
+        w.flush()
     }
 }
