@@ -13,10 +13,10 @@ async function run() {
   let textarea = document.createElement("textarea");
   document.body.appendChild(textarea);
   textarea.focus();
-  textarea.setAttribute('autocapitalize', 'off');
-  textarea.setAttribute('autocomplete', 'off');
-  textarea.setAttribute('autocorrect', 'off');
-  textarea.setAttribute('spellcheck', 'false');
+  textarea.setAttribute("autocapitalize", "off");
+  textarea.setAttribute("autocomplete", "off");
+  textarea.setAttribute("autocorrect", "off");
+  textarea.setAttribute("spellcheck", "false");
   document.body.style = `
     margin: 0;
     border: 0;
@@ -78,6 +78,15 @@ Type ":help" to see the available commands.
         ucci.interp_start(input, write_output);
         setTimeout(step);
       }
+    }
+    if (
+      ev.ctrlKey &&
+      ev.key == "c" &&
+      textarea.selectionStart === textarea.selectionEnd &&
+      textarea.selectionEnd === textarea.value.length
+    ) {
+      ucci.interp_start("", write_output);
+      setTimeout(step);
     }
   });
 }
