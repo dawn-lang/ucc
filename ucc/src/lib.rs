@@ -14,7 +14,7 @@ pub mod interp;
 #[cfg(test)]
 mod test_interp;
 
-pub mod interp_step;
+pub mod non_blocking_interp;
 
 use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(pub parse);

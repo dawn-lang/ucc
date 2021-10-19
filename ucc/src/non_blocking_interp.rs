@@ -10,14 +10,14 @@ use crate::interp::*;
 use crate::parse::*;
 use std::io;
 
-pub struct InterpStep {
+pub struct NonBlockingInterp {
     ctx: Context,
     vs: ValueStack,
     command: Option<InterpCommand>,
     is_first_eval_step: bool,
 }
 
-impl Default for InterpStep {
+impl Default for NonBlockingInterp {
     fn default() -> Self {
         let mut ctx = Context::default();
         for fn_def_src in FN_DEF_SRCS.iter() {
@@ -35,7 +35,7 @@ impl Default for InterpStep {
     }
 }
 
-impl InterpStep {
+impl NonBlockingInterp {
     pub fn is_done(&self) -> bool {
         self.command.is_none()
     }
