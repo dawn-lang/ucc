@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Untyped Concatenative Calculus Interpreter (UCCI)");
     println!("Type \":help\" to see the available commands.");
     let reader = Interface::new("ucci")?;
-    reader.set_prompt("ucci> ")?;
+    reader.set_prompt(">>> ")?;
     while let ReadResult::Input(input) = reader.read_line()? {
         reader.add_history(input.clone());
         interp.interp(input.as_str(), &mut stdout()).unwrap();
