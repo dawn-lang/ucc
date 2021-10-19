@@ -132,8 +132,17 @@ impl NonBlockingInterp {
                             }
                             if e != Expr::default() {
                                 if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
+                                    w.write_fmt(format_args!(
+                                        "⇓ {} {}\n",
+                                        self.vs.resolve(&self.ctx.interner),
+                                        e.resolve(&self.ctx.interner)
+                                    )).unwrap();
                                     // TODO: better error messages
-                                    w.write_fmt(format_args!("{:?}\n", err)).unwrap();
+                                    w.write_fmt(format_args!(
+                                        "{:?}\n",
+                                        err.resolve(&self.ctx.interner)
+                                    ))
+                                    .unwrap();
                                     return;
                                 } else if e == Expr::default() {
                                     w.write_fmt(format_args!(
@@ -156,7 +165,8 @@ impl NonBlockingInterp {
                 if e != Expr::default() {
                     if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
                         // TODO: better error messages
-                        w.write_fmt(format_args!("{:?}\n", err)).unwrap();
+                        w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))
+                            .unwrap();
                         return;
                     }
                     w.write_fmt(format_args!(

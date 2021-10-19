@@ -89,6 +89,18 @@ fn test_interp_interp() {
                 "⟨⟩ [n2] [n2] mul\n⇓ ⟨[n4]⟩ \n",
             ),
         ][..],
+        &[
+            (
+                "[true] foo",
+                "⟨⟩ [true] foo\n⇓ ⟨[true]⟩ foo\nUndefinedFn(\"foo\")\n",
+            ),
+        ][..],
+        &[
+            (
+                ":trace [true] foo",
+                "⟨⟩ [true] foo\n⟶ ⟨[true]⟩ foo\nUndefinedFn(\"foo\")\n",
+            ),
+        ][..],
     ];
     for session in sessions {
         let mut interp = Interp::default();

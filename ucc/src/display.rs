@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use crate::core::{Expr, Interner, Intrinsic, Symbol, Value, ValueStack};
+use crate::core::{EvalError, Expr, Interner, Intrinsic, Symbol, Value, ValueStack};
 use std::fmt;
 
 pub(crate) type ResolvedSymbol = String;
@@ -25,6 +25,12 @@ pub enum ResolvedValue {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedValueStack(pub(crate) Vec<ResolvedValue>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResolvedEvalError {
+    TooFewValues { available: usize, expected: usize },
+    UndefinedFn(String),
+}
 
 pub(crate) trait Resolve {
     type Output;
@@ -65,6 +71,22 @@ impl Resolve for ValueStack {
     type Output = ResolvedValueStack;
     fn resolve(&self, interner: &Interner) -> Self::Output {
         ResolvedValueStack(self.0.iter().map(|v| v.resolve(interner)).collect())
+    }
+}
+
+impl Resolve for EvalError {
+    type Output = ResolvedEvalError;
+    fn resolve(&self, interner: &Interner) -> Self::Output {
+        match self {
+            &EvalError::TooFewValues {
+                available,
+                expected,
+            } => ResolvedEvalError::TooFewValues {
+                available,
+                expected,
+            },
+            &EvalError::UndefinedFn(sym) => ResolvedEvalError::UndefinedFn(sym.resolve(interner)),
+        }
     }
 }
 

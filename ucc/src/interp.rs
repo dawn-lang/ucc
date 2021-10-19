@@ -95,8 +95,8 @@ impl Interp {
                                         e.resolve(&self.ctx.interner)
                                     ))?;
                                     // TODO: better error messages
-                                    w.write_fmt(format_args!("{:?}\n", err))?;
-                                    break;
+                                    w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))?;
+                                    return w.flush();
                                 }
                                 self.ctx.compress(&mut self.vs);
                             }
@@ -119,8 +119,8 @@ impl Interp {
                 while e != Expr::default() {
                     if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
                         // TODO: better error messages
-                        w.write_fmt(format_args!("{:?}\n", err))?;
-                        break;
+                        w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))?;
+                        return w.flush();
                     }
                     w.write_fmt(format_args!(
                         "⟶ {} {}\n",
