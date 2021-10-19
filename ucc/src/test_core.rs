@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+use crate::builtin::FN_DEF_SRCS;
 use crate::core::*;
 use crate::display::*;
 use crate::parse::*;
@@ -51,27 +52,6 @@ fn test_define_fn() {
 
 #[test]
 fn test_big_step() {
-    let fn_def_srcs = [
-        "{fn true = drop}",
-        "{fn false = swap drop}",
-        "{fn and = clone apply}",
-        "{fn quote2 = quote swap quote swap compose}",
-        "{fn quote3 = quote2 swap quote swap compose}",
-        "{fn rotate3 = quote2 swap quote compose apply}",
-        "{fn rotate4 = quote3 swap quote compose apply}",
-        "{fn compose2 = compose}",
-        "{fn compose3 = compose2 compose}",
-        "{fn compose4 = compose3 compose}",
-        "{fn compose5 = compose4 compose}",
-        "{fn n0 = drop}",
-        "{fn n1 = apply}",
-        "{fn n2 = clone compose apply}",
-        "{fn n3 = [clone] n2 [compose] n2 apply}",
-        "{fn n4 = [clone] n3 [compose] n3 apply}",
-        "{fn succ = [[clone]] swap clone [[compose]] swap [apply] compose5}",
-        "{fn add = [succ] swap apply}",
-        "{fn mul = [n0] rotate3 quote [add] compose rotate3 apply}"
-    ];
     let cases = [
         "⟨[e1] [e2]⟩ swap swap ⇓ ⟨[e1] [e2]⟩",
         "⟨[v1] [v2]⟩ true ⇓ ⟨[v1]⟩",
@@ -110,7 +90,7 @@ fn test_big_step() {
         "⟨[e] [n2] [n2]⟩ mul apply ⇓ ⟨⟩ e e e e",
     ];
     let mut ctx = Context::default();
-    for fn_def_src in fn_def_srcs.iter() {
+    for fn_def_src in FN_DEF_SRCS.iter() {
         let fn_def = FnDefParser::new()
             .parse(&mut ctx.interner, fn_def_src)
             .unwrap();

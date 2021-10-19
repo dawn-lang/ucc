@@ -8,6 +8,8 @@ pub mod core;
 #[cfg(test)]
 mod test_core;
 
+mod builtin;
+
 pub mod display;
 
 pub mod interp;
