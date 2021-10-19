@@ -59,8 +59,8 @@ pub(crate) static FN_DEF_SRCS: [&'static str; 19] = [
     "{fn compose4 = compose3 compose}",
     "{fn compose5 = compose4 compose}",
     "{fn n0 = drop}",
-    "{fn n1 = apply}",
-    "{fn n2 = clone compose apply}",
+    "{fn n1 = [clone] n0 [compose] n0 apply}",
+    "{fn n2 = [clone] n1 [compose] n1 apply}",
     "{fn n3 = [clone] n2 [compose] n2 apply}",
     "{fn n4 = [clone] n3 [compose] n3 apply}",
     "{fn succ = [[clone]] swap clone [[compose]] swap [apply] compose5}",
@@ -75,7 +75,7 @@ impl Default for Interp {
             let fn_def = FnDefParser::new()
                 .parse(&mut ctx.interner, fn_def_src)
                 .unwrap();
-            assert_eq!(ctx.define_fn(fn_def), None);
+            assert_eq!(ctx.define_fn(fn_def.clone()), None);
         }
         Self {
             ctx,
@@ -108,17 +108,24 @@ impl Interp {
                                 self.vs.resolve(&self.ctx.interner),
                                 e.resolve(&self.ctx.interner)
                             ))?;
-                            let result = self.ctx.eval(&mut self.vs, &mut e);
+                            while e != Expr::default() {
+                                if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
+                                    w.write_fmt(format_args!(
+                                        "⇓ {} {}\n",
+                                        self.vs.resolve(&self.ctx.interner),
+                                        e.resolve(&self.ctx.interner)
+                                    ))?;
+                                    // TODO: better error messages
+                                    w.write_fmt(format_args!("{:?}\n", err))?;
+                                    break;
+                                }
+                                self.ctx.compress(&mut self.vs);
+                            }
                             w.write_fmt(format_args!(
                                 "⇓ {} {}\n",
                                 self.vs.resolve(&self.ctx.interner),
                                 e.resolve(&self.ctx.interner)
                             ))?;
-                            if let Err(err) = result {
-                                // TODO: better error messages
-                                w.write_fmt(format_args!("{:?}\n", err))?;
-                                break;
-                            }
                         }
                     }
                     w.flush()?;
@@ -141,6 +148,13 @@ impl Interp {
                         self.vs.resolve(&self.ctx.interner),
                         e.resolve(&self.ctx.interner)
                     ))?;
+                    if self.ctx.compress(&mut self.vs) {
+                        w.write_fmt(format_args!(
+                            "= {} {}\n",
+                            self.vs.resolve(&self.ctx.interner),
+                            e.resolve(&self.ctx.interner)
+                        ))?;
+                    }
                     w.flush()?;
                 }
             }

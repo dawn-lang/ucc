@@ -59,6 +59,36 @@ fn test_interp_interp() {
             ),
         )][..],
         &[(":help", HELP)][..],
+        &[
+            (
+                "[n0] succ",
+                "⟨⟩ [n0] succ\n⇓ ⟨[n1]⟩ \n",
+            ),
+        ][..],
+        &[
+            (
+                "[n0] [n1] add",
+                "⟨⟩ [n0] [n1] add\n⇓ ⟨[n1]⟩ \n",
+            ),
+        ][..],
+        &[
+            (
+                "[n1] [n1] add",
+                "⟨⟩ [n1] [n1] add\n⇓ ⟨[n2]⟩ \n",
+            ),
+        ][..],
+        &[
+            (
+                "[n1] [n1] mul",
+                "⟨⟩ [n1] [n1] mul\n⇓ ⟨[n1]⟩ \n",
+            ),
+        ][..],
+        &[
+            (
+                "[n2] [n2] mul",
+                "⟨⟩ [n2] [n2] mul\n⇓ ⟨[n4]⟩ \n",
+            ),
+        ][..],
     ];
     for session in sessions {
         let mut interp = Interp::default();

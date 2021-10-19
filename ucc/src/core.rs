@@ -25,7 +25,7 @@ pub struct Symbol(pub(crate) lasso::Spur);
 ////////////
 
 /// Expressions
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Intrinsic(Intrinsic),
     Call(Symbol),
@@ -33,7 +33,7 @@ pub enum Expr {
     Compose(Vec<Expr>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Intrinsic {
     Swap,
     Clone,
@@ -64,6 +64,12 @@ impl Value {
             Value::Quote(e) => e,
         }
     }
+
+    fn unquote_ref(&self) -> &Expr {
+        match self {
+            Value::Quote(e) => e,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -72,6 +78,7 @@ pub struct ValueStack(pub(crate) Vec<Value>);
 pub struct Context {
     pub(crate) interner: Interner,
     pub(crate) fns: Map<Symbol, Expr>,
+    pub(crate) exprs: Map<Expr, Symbol>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +93,7 @@ impl Default for Context {
         Context {
             interner,
             fns: Map::default(),
+            exprs: Map::default(),
         }
     }
 }
@@ -234,11 +242,15 @@ impl Context {
         }
     }
 
-    pub fn eval(&mut self, vs: &mut ValueStack, e: &mut Expr) -> Result<(), EvalError> {
-        while e != &Expr::default() {
-            self.small_step(vs, e)?;
+    pub fn compress(&mut self, vs: &mut ValueStack) -> bool {
+        let mut compressed = false;
+        for v in vs.0.iter_mut() {
+            if let Some(sym) = self.exprs.get(v.unquote_ref()) {
+                *v = Value::Quote(Box::new(Expr::Call(*sym)));
+                compressed = true;
+            }
         }
-        Ok(())
+        compressed
     }
 }
 
@@ -252,7 +264,8 @@ pub struct FnDef(pub Symbol, pub Expr);
 impl Context {
     pub fn define_fn(&mut self, fn_def: FnDef) -> Option<FnDef> {
         let result = self.fns.remove(&fn_def.0).map(|e| FnDef(fn_def.0, e));
-        self.fns.insert(fn_def.0, fn_def.1);
+        self.fns.insert(fn_def.0, fn_def.1.clone());
+        self.exprs.insert(fn_def.1, fn_def.0);
         result
     }
 }
