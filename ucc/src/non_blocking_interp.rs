@@ -144,17 +144,19 @@ impl NonBlockingInterp {
                                     ))
                                     .unwrap();
                                     return;
-                                } else if e == Expr::default() {
-                                    w.write_fmt(format_args!(
-                                        "⇓ {} {}\n",
-                                        self.vs.resolve(&self.ctx.interner),
-                                        e.resolve(&self.ctx.interner)
-                                    ))
-                                    .unwrap();
                                 } else {
+                                    self.ctx.compress(&mut self.vs);
                                     is.insert(0, InterpItem::Expr(e));
                                     self.is_first_eval_step = false;
                                 }
+                            } else {
+                                w.write_fmt(format_args!(
+                                    "⇓ {} {}\n",
+                                    self.vs.resolve(&self.ctx.interner),
+                                    e.resolve(&self.ctx.interner)
+                                ))
+                                .unwrap();
+                                self.is_first_eval_step = true;
                             }
                         }
                     }
@@ -175,6 +177,13 @@ impl NonBlockingInterp {
                         e.resolve(&self.ctx.interner)
                     ))
                     .unwrap();
+                    if self.ctx.compress(&mut self.vs) {
+                        w.write_fmt(format_args!(
+                            "= {} {}\n",
+                            self.vs.resolve(&self.ctx.interner),
+                            e.resolve(&self.ctx.interner)
+                        )).unwrap();
+                    }
                     self.command = Some(InterpCommand::Trace(e));
                 }
             }
