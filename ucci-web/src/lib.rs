@@ -28,7 +28,7 @@ impl Ucci {
 
     pub fn interp_start(&mut self, input: &str, write_output: &js_sys::Function) {
         self.buffer.clear();
-        self.interp.interp_start(input, &mut self.buffer);
+        self.interp.interp_start(input, &mut self.buffer).unwrap();
         let output = unsafe { std::str::from_utf8_unchecked(&self.buffer[..]) };
         write_output
             .call1(&JsValue::null(), &JsValue::from(output))
@@ -37,7 +37,7 @@ impl Ucci {
 
     pub fn interp_step(&mut self, write_output: &js_sys::Function) {
         self.buffer.clear();
-        self.interp.interp_step(&mut self.buffer);
+        self.interp.interp_step(&mut self.buffer).unwrap();
         let output = unsafe { std::str::from_utf8_unchecked(&self.buffer[..]) };
         write_output
             .call1(&JsValue::null(), &JsValue::from(output))

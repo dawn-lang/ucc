@@ -41,11 +41,11 @@ impl NonBlockingInterp {
         self.command.is_none()
     }
 
-    pub fn interp_start(&mut self, input: &str, w: &mut dyn io::Write) {
+    pub fn interp_start(&mut self, input: &str, w: &mut dyn io::Write) -> io::Result<()> {
         match InterpCommandParser::new().parse(&mut self.ctx.interner, input) {
             Err(err) => {
                 // TODO: better error messages
-                w.write_fmt(format_args!("{:?}\n", err)).unwrap();
+                w.write_fmt(format_args!("{:?}\n", err))?;
             }
             Ok(InterpCommand::Eval(is)) => {
                 self.is_first_eval_step = true;
@@ -56,8 +56,7 @@ impl NonBlockingInterp {
                     "{} {}\n",
                     self.vs.resolve(&self.ctx.interner),
                     e.resolve(&self.ctx.interner)
-                ))
-                .unwrap();
+                ))?;
                 self.command = Some(InterpCommand::Trace(e));
             }
             Ok(InterpCommand::Show(sym)) => {
@@ -66,10 +65,9 @@ impl NonBlockingInterp {
                         "{{fn {} = {}}}\n",
                         sym.resolve(&self.ctx.interner),
                         e.resolve(&self.ctx.interner)
-                    ))
-                    .unwrap();
+                    ))?;
                 } else {
-                    w.write_fmt(format_args!("Not defined.\n")).unwrap();
+                    w.write_fmt(format_args!("Not defined.\n"))?;
                 }
             }
             Ok(InterpCommand::List) => {
@@ -81,33 +79,34 @@ impl NonBlockingInterp {
                     .collect();
                 names.sort_unstable();
                 if let Some(name) = names.first() {
-                    w.write_all(name.as_bytes()).unwrap();
+                    w.write_all(name.as_bytes())?;
                 }
                 for name in names.iter().skip(1) {
-                    w.write_all(" ".as_bytes()).unwrap();
-                    w.write_all(name.as_bytes()).unwrap();
+                    w.write_all(" ".as_bytes())?;
+                    w.write_all(name.as_bytes())?;
                 }
-                w.write_all("\n".as_bytes()).unwrap();
+                w.write_all("\n".as_bytes())?;
             }
             Ok(InterpCommand::Drop) => {
                 self.vs = ValueStack::default();
-                w.write_fmt(format_args!("Values dropped.\n")).unwrap();
+                w.write_fmt(format_args!("Values dropped.\n"))?;
             }
             Ok(InterpCommand::Clear) => {
                 self.ctx.fns.clear();
-                w.write_fmt(format_args!("Definitions cleared.\n")).unwrap();
+                w.write_fmt(format_args!("Definitions cleared.\n"))?;
             }
             Ok(InterpCommand::Reset) => {
                 *self = Self::default();
-                w.write_fmt(format_args!("Reset.\n")).unwrap();
+                w.write_fmt(format_args!("Reset.\n"))?;
             }
             Ok(InterpCommand::Help) => {
-                w.write_all(HELP.as_bytes()).unwrap();
+                w.write_all(HELP.as_bytes())?;
             }
         }
+        w.flush()
     }
 
-    pub fn interp_step(&mut self, w: &mut dyn io::Write) {
+    pub fn interp_step(&mut self, w: &mut dyn io::Write) -> io::Result<()> {
         match self.command.take() {
             Some(InterpCommand::Eval(mut is)) => {
                 if !is.is_empty() {
@@ -115,10 +114,9 @@ impl NonBlockingInterp {
                         InterpItem::FnDef(fn_def) => {
                             let name = fn_def.0.resolve(&self.ctx.interner);
                             if let Some(_) = self.ctx.define_fn(fn_def) {
-                                w.write_fmt(format_args!("Redefined `{}`.\n", name))
-                                    .unwrap();
+                                w.write_fmt(format_args!("Redefined `{}`.\n", name))?;
                             } else {
-                                w.write_fmt(format_args!("Defined `{}`.\n", name)).unwrap();
+                                w.write_fmt(format_args!("Defined `{}`.\n", name))?;
                             }
                         }
                         InterpItem::Expr(mut e) => {
@@ -127,8 +125,7 @@ impl NonBlockingInterp {
                                     "{} {}\n",
                                     self.vs.resolve(&self.ctx.interner),
                                     e.resolve(&self.ctx.interner)
-                                ))
-                                .unwrap();
+                                ))?;
                             }
                             if e != Expr::default() {
                                 if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
@@ -136,14 +133,13 @@ impl NonBlockingInterp {
                                         "⇓ {} {}\n",
                                         self.vs.resolve(&self.ctx.interner),
                                         e.resolve(&self.ctx.interner)
-                                    )).unwrap();
+                                    ))?;
                                     // TODO: better error messages
                                     w.write_fmt(format_args!(
                                         "{:?}\n",
                                         err.resolve(&self.ctx.interner)
-                                    ))
-                                    .unwrap();
-                                    return;
+                                    ))?;
+                                    return w.flush();
                                 } else {
                                     self.ctx.compress(&mut self.vs);
                                     is.insert(0, InterpItem::Expr(e));
@@ -154,8 +150,7 @@ impl NonBlockingInterp {
                                     "⇓ {} {}\n",
                                     self.vs.resolve(&self.ctx.interner),
                                     e.resolve(&self.ctx.interner)
-                                ))
-                                .unwrap();
+                                ))?;
                                 self.is_first_eval_step = true;
                             }
                         }
@@ -167,27 +162,26 @@ impl NonBlockingInterp {
                 if e != Expr::default() {
                     if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
                         // TODO: better error messages
-                        w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))
-                            .unwrap();
-                        return;
+                        w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))?;
+                        return w.flush();
                     }
                     w.write_fmt(format_args!(
                         "⟶ {} {}\n",
                         self.vs.resolve(&self.ctx.interner),
                         e.resolve(&self.ctx.interner)
-                    ))
-                    .unwrap();
+                    ))?;
                     if self.ctx.compress(&mut self.vs) {
                         w.write_fmt(format_args!(
                             "= {} {}\n",
                             self.vs.resolve(&self.ctx.interner),
                             e.resolve(&self.ctx.interner)
-                        )).unwrap();
+                        ))?;
                     }
                     self.command = Some(InterpCommand::Trace(e));
                 }
             }
             _ => panic!(),
         }
+        w.flush()
     }
 }

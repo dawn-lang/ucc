@@ -108,9 +108,9 @@ fn test_non_blocking_interp() {
         let mut interp = NonBlockingInterp::default();
         for &(input, expected_output) in session {
             buffer.clear();
-            interp.interp_start(input, &mut buffer);
+            interp.interp_start(input, &mut buffer).unwrap();
             while !interp.is_done() {
-                interp.interp_step(&mut buffer);
+                interp.interp_step(&mut buffer).unwrap();
             }
             let output = unsafe { std::str::from_utf8_unchecked(&buffer[..]) };
             assert_eq!(
