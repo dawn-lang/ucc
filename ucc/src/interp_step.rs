@@ -14,6 +14,7 @@ pub struct InterpStep {
     ctx: Context,
     vs: ValueStack,
     command: Option<InterpCommand>,
+    is_first_eval_step: bool,
 }
 
 impl Default for InterpStep {
@@ -29,6 +30,7 @@ impl Default for InterpStep {
             ctx,
             vs: ValueStack::default(),
             command: None,
+            is_first_eval_step: true,
         }
     }
 }
@@ -45,6 +47,7 @@ impl InterpStep {
                 w.write_fmt(format_args!("{:?}\n", err)).unwrap();
             }
             Ok(InterpCommand::Eval(is)) => {
+                self.is_first_eval_step = true;
                 self.command = Some(InterpCommand::Eval(is));
             }
             Ok(InterpCommand::Trace(e)) => {
@@ -118,23 +121,30 @@ impl InterpStep {
                             }
                         }
                         InterpItem::Expr(mut e) => {
-                            w.write_fmt(format_args!(
-                                "{} {}\n",
-                                self.vs.resolve(&self.ctx.interner),
-                                e.resolve(&self.ctx.interner)
-                            ))
-                            .unwrap();
-                            let result = self.ctx.eval(&mut self.vs, &mut e);
-                            w.write_fmt(format_args!(
-                                "⇓ {} {}\n",
-                                self.vs.resolve(&self.ctx.interner),
-                                e.resolve(&self.ctx.interner)
-                            ))
-                            .unwrap();
-                            if let Err(err) = result {
-                                // TODO: better error messages
-                                w.write_fmt(format_args!("{:?}\n", err)).unwrap();
-                                return;
+                            if self.is_first_eval_step {
+                                w.write_fmt(format_args!(
+                                    "{} {}\n",
+                                    self.vs.resolve(&self.ctx.interner),
+                                    e.resolve(&self.ctx.interner)
+                                ))
+                                .unwrap();
+                            }
+                            if e != Expr::default() {
+                                if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
+                                    // TODO: better error messages
+                                    w.write_fmt(format_args!("{:?}\n", err)).unwrap();
+                                    return;
+                                } else if e == Expr::default() {
+                                    w.write_fmt(format_args!(
+                                        "⇓ {} {}\n",
+                                        self.vs.resolve(&self.ctx.interner),
+                                        e.resolve(&self.ctx.interner)
+                                    ))
+                                    .unwrap();
+                                } else {
+                                    is.insert(0, InterpItem::Expr(e));
+                                    self.is_first_eval_step = false;
+                                }
                             }
                         }
                     }
