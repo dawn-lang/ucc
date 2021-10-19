@@ -16,10 +16,6 @@ pub mod interp;
 #[cfg(test)]
 mod test_interp;
 
-pub mod non_blocking_interp;
-#[cfg(test)]
-mod test_non_blocking_interp;
-
 use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(pub parse);
 #[cfg(test)]

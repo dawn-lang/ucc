@@ -4,10 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use crate::interp::*;
+use crate::interp::{Interp, HELP};
 
 #[test]
-fn test_interp_interp() {
+fn test_non_blocking_interp() {
     let sessions = [
         &[
             (":drop", "Values dropped.\n"),
@@ -59,57 +59,32 @@ fn test_interp_interp() {
             ),
         )][..],
         &[(":help", HELP)][..],
-        &[
-            (
-                "[n0] succ",
-                "⟨⟩ [n0] succ\n⇓ ⟨[n1]⟩ \n",
-            ),
-        ][..],
-        &[
-            (
-                "[n0] [n1] add",
-                "⟨⟩ [n0] [n1] add\n⇓ ⟨[n1]⟩ \n",
-            ),
-        ][..],
-        &[
-            (
-                "[n1] [n1] add",
-                "⟨⟩ [n1] [n1] add\n⇓ ⟨[n2]⟩ \n",
-            ),
-        ][..],
-        &[
-            (
-                "[n1] [n1] mul",
-                "⟨⟩ [n1] [n1] mul\n⇓ ⟨[n1]⟩ \n",
-            ),
-        ][..],
-        &[
-            (
-                "[n2] [n2] mul",
-                "⟨⟩ [n2] [n2] mul\n⇓ ⟨[n4]⟩ \n",
-            ),
-        ][..],
-        &[
-            (
-                "[true] foo",
-                "⟨⟩ [true] foo\n⇓ ⟨[true]⟩ foo\nUndefinedFn(\"foo\")\n",
-            ),
-        ][..],
-        &[
-            (
-                ":trace [true] foo",
-                "⟨⟩ [true] foo\n⟶ ⟨[true]⟩ foo\nUndefinedFn(\"foo\")\n",
-            ),
-        ][..],
+        &[("[n0] succ", "⟨⟩ [n0] succ\n⇓ ⟨[n1]⟩ \n")][..],
+        &[("[n0] [n1] add", "⟨⟩ [n0] [n1] add\n⇓ ⟨[n1]⟩ \n")][..],
+        &[("[n1] [n1] add", "⟨⟩ [n1] [n1] add\n⇓ ⟨[n2]⟩ \n")][..],
+        &[("[n1] [n1] mul", "⟨⟩ [n1] [n1] mul\n⇓ ⟨[n1]⟩ \n")][..],
+        &[("[n2] [n2] mul", "⟨⟩ [n2] [n2] mul\n⇓ ⟨[n4]⟩ \n")][..],
+        &[(
+            "[true] foo",
+            "⟨⟩ [true] foo\n⇓ ⟨[true]⟩ foo\nUndefinedFn(\"foo\")\n",
+        )][..],
+        &[(
+            ":trace [true] foo",
+            "⟨⟩ [true] foo\n⟶ ⟨[true]⟩ foo\nUndefinedFn(\"foo\")\n",
+        )][..],
     ];
+    let mut buffer = Vec::with_capacity(4096);
     for session in sessions {
         let mut interp = Interp::default();
-        let mut output = Vec::default();
         for &(input, expected_output) in session {
-            output.clear();
-            interp.interp(input, &mut output).unwrap();
+            buffer.clear();
+            interp.interp_start(input, &mut buffer).unwrap();
+            while !interp.is_done() {
+                interp.interp_step(&mut buffer).unwrap();
+            }
+            let output = unsafe { std::str::from_utf8_unchecked(&buffer[..]) };
             assert_eq!(
-                std::str::from_utf8(&output[..]).unwrap(),
+                output,
                 expected_output,
                 "Failed on {:?}",
                 (input, expected_output)

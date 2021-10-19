@@ -45,6 +45,8 @@ Commands available:
 pub struct Interp {
     ctx: Context,
     vs: ValueStack,
+    command: Option<InterpCommand>,
+    is_first_eval_step: bool,
 }
 
 impl Default for Interp {
@@ -54,88 +56,39 @@ impl Default for Interp {
             let fn_def = FnDefParser::new()
                 .parse(&mut ctx.interner, fn_def_src)
                 .unwrap();
-            assert_eq!(ctx.define_fn(fn_def.clone()), None);
+            assert_eq!(ctx.define_fn(fn_def), None);
         }
         Self {
             ctx,
             vs: ValueStack::default(),
+            command: None,
+            is_first_eval_step: true,
         }
     }
 }
 
 impl Interp {
-    pub fn interp(&mut self, input: &str, w: &mut dyn io::Write) -> io::Result<()> {
+    pub fn is_done(&self) -> bool {
+        self.command.is_none()
+    }
+
+    pub fn interp_start(&mut self, input: &str, w: &mut dyn io::Write) -> io::Result<()> {
         match InterpCommandParser::new().parse(&mut self.ctx.interner, input) {
             Err(err) => {
                 // TODO: better error messages
                 w.write_fmt(format_args!("{:?}\n", err))?;
             }
             Ok(InterpCommand::Eval(is)) => {
-                for i in is {
-                    match i {
-                        InterpItem::FnDef(fn_def) => {
-                            let name = fn_def.0.resolve(&self.ctx.interner);
-                            if let Some(_) = self.ctx.define_fn(fn_def) {
-                                w.write_fmt(format_args!("Redefined `{}`.\n", name))?;
-                            } else {
-                                w.write_fmt(format_args!("Defined `{}`.\n", name))?;
-                            }
-                        }
-                        InterpItem::Expr(mut e) => {
-                            w.write_fmt(format_args!(
-                                "{} {}\n",
-                                self.vs.resolve(&self.ctx.interner),
-                                e.resolve(&self.ctx.interner)
-                            ))?;
-                            while e != Expr::default() {
-                                if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
-                                    w.write_fmt(format_args!(
-                                        "⇓ {} {}\n",
-                                        self.vs.resolve(&self.ctx.interner),
-                                        e.resolve(&self.ctx.interner)
-                                    ))?;
-                                    // TODO: better error messages
-                                    w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))?;
-                                    return w.flush();
-                                }
-                                self.ctx.compress(&mut self.vs);
-                            }
-                            w.write_fmt(format_args!(
-                                "⇓ {} {}\n",
-                                self.vs.resolve(&self.ctx.interner),
-                                e.resolve(&self.ctx.interner)
-                            ))?;
-                        }
-                    }
-                    w.flush()?;
-                }
+                self.is_first_eval_step = true;
+                self.command = Some(InterpCommand::Eval(is));
             }
-            Ok(InterpCommand::Trace(mut e)) => {
+            Ok(InterpCommand::Trace(e)) => {
                 w.write_fmt(format_args!(
                     "{} {}\n",
                     self.vs.resolve(&self.ctx.interner),
                     e.resolve(&self.ctx.interner)
                 ))?;
-                while e != Expr::default() {
-                    if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
-                        // TODO: better error messages
-                        w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))?;
-                        return w.flush();
-                    }
-                    w.write_fmt(format_args!(
-                        "⟶ {} {}\n",
-                        self.vs.resolve(&self.ctx.interner),
-                        e.resolve(&self.ctx.interner)
-                    ))?;
-                    if self.ctx.compress(&mut self.vs) {
-                        w.write_fmt(format_args!(
-                            "= {} {}\n",
-                            self.vs.resolve(&self.ctx.interner),
-                            e.resolve(&self.ctx.interner)
-                        ))?;
-                    }
-                    w.flush()?;
-                }
+                self.command = Some(InterpCommand::Trace(e));
             }
             Ok(InterpCommand::Show(sym)) => {
                 if let Some(e) = self.ctx.fns.get(&sym) {
@@ -174,12 +127,91 @@ impl Interp {
                 w.write_fmt(format_args!("Definitions cleared.\n"))?;
             }
             Ok(InterpCommand::Reset) => {
-                *self = Interp::default();
+                *self = Self::default();
                 w.write_fmt(format_args!("Reset.\n"))?;
             }
             Ok(InterpCommand::Help) => {
                 w.write_all(HELP.as_bytes())?;
             }
+        }
+        w.flush()
+    }
+
+    pub fn interp_step(&mut self, w: &mut dyn io::Write) -> io::Result<()> {
+        match self.command.take() {
+            Some(InterpCommand::Eval(mut is)) => {
+                if !is.is_empty() {
+                    match is.remove(0) {
+                        InterpItem::FnDef(fn_def) => {
+                            let name = fn_def.0.resolve(&self.ctx.interner);
+                            if let Some(_) = self.ctx.define_fn(fn_def) {
+                                w.write_fmt(format_args!("Redefined `{}`.\n", name))?;
+                            } else {
+                                w.write_fmt(format_args!("Defined `{}`.\n", name))?;
+                            }
+                        }
+                        InterpItem::Expr(mut e) => {
+                            if self.is_first_eval_step {
+                                w.write_fmt(format_args!(
+                                    "{} {}\n",
+                                    self.vs.resolve(&self.ctx.interner),
+                                    e.resolve(&self.ctx.interner)
+                                ))?;
+                            }
+                            if e != Expr::default() {
+                                if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
+                                    w.write_fmt(format_args!(
+                                        "⇓ {} {}\n",
+                                        self.vs.resolve(&self.ctx.interner),
+                                        e.resolve(&self.ctx.interner)
+                                    ))?;
+                                    // TODO: better error messages
+                                    w.write_fmt(format_args!(
+                                        "{:?}\n",
+                                        err.resolve(&self.ctx.interner)
+                                    ))?;
+                                    return w.flush();
+                                } else {
+                                    self.ctx.compress(&mut self.vs);
+                                    is.insert(0, InterpItem::Expr(e));
+                                    self.is_first_eval_step = false;
+                                }
+                            } else {
+                                w.write_fmt(format_args!(
+                                    "⇓ {} {}\n",
+                                    self.vs.resolve(&self.ctx.interner),
+                                    e.resolve(&self.ctx.interner)
+                                ))?;
+                                self.is_first_eval_step = true;
+                            }
+                        }
+                    }
+                    self.command = Some(InterpCommand::Eval(is));
+                }
+            }
+            Some(InterpCommand::Trace(mut e)) => {
+                if e != Expr::default() {
+                    if let Err(err) = self.ctx.small_step(&mut self.vs, &mut e) {
+                        // TODO: better error messages
+                        w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))?;
+                        return w.flush();
+                    }
+                    w.write_fmt(format_args!(
+                        "⟶ {} {}\n",
+                        self.vs.resolve(&self.ctx.interner),
+                        e.resolve(&self.ctx.interner)
+                    ))?;
+                    if self.ctx.compress(&mut self.vs) {
+                        w.write_fmt(format_args!(
+                            "= {} {}\n",
+                            self.vs.resolve(&self.ctx.interner),
+                            e.resolve(&self.ctx.interner)
+                        ))?;
+                    }
+                    self.command = Some(InterpCommand::Trace(e));
+                }
+            }
+            _ => panic!(),
         }
         w.flush()
     }

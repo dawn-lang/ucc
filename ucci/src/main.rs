@@ -18,7 +18,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     reader.set_prompt(">>> ")?;
     while let ReadResult::Input(input) = reader.read_line()? {
         reader.add_history(input.clone());
-        interp.interp(input.as_str(), &mut stdout()).unwrap();
+        interp.interp_start(input.as_str(), &mut stdout()).unwrap();
+        while !interp.is_done() {
+            interp.interp_step(&mut stdout()).unwrap();
+        }
     }
     Ok(())
 }

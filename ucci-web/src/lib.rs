@@ -3,12 +3,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-use ucc::non_blocking_interp::NonBlockingInterp;
+use ucc::interp::Interp;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct Ucci {
-    interp: NonBlockingInterp,
+    interp: Interp,
     buffer: Vec<u8>,
 }
 
@@ -17,7 +17,7 @@ impl Ucci {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Self {
-            interp: NonBlockingInterp::default(),
+            interp: Interp::default(),
             buffer: Vec::with_capacity(4096),
         }
     }
