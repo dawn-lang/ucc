@@ -62,6 +62,7 @@ pub ValueStack: ValueStack = {
 }
 
 pub Value: Value = {
+    IDENT => Value::Call(Symbol(interner.get_or_intern(<>))),
     LBRACKET <Expr> RBRACKET => Value::Quote(Box::new(<>)),
 }
 

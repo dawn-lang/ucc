@@ -55,21 +55,8 @@ impl Default for Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
+    Call(Symbol),
     Quote(Box<Expr>),
-}
-
-impl Value {
-    fn unquote(self) -> Box<Expr> {
-        match self {
-            Value::Quote(e) => e,
-        }
-    }
-
-    fn unquote_ref(&self) -> &Expr {
-        match self {
-            Value::Quote(e) => e,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -78,7 +65,7 @@ pub struct ValueStack(pub(crate) Vec<Value>);
 pub struct Context {
     pub(crate) interner: Interner,
     pub(crate) fns: Map<Symbol, Expr>,
-    pub(crate) exprs: Map<Expr, Symbol>
+    pub(crate) exprs: Map<Expr, Symbol>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,6 +86,22 @@ impl Default for Context {
 }
 
 impl Context {
+    fn unquote_value(&self, v: Value) -> Result<Expr, EvalError> {
+        match v {
+            Value::Call(sym) => {
+                if let Some(e) = self.fns.get(&sym) {
+                    match e {
+                        Expr::Quote(e) => Ok((**e).clone()),
+                        _ => panic!(),
+                    }
+                } else {
+                    Err(EvalError::UndefinedFn(sym))
+                }
+            }
+            Value::Quote(e) => Ok(*e),
+        }
+    }
+
     pub fn small_step(&mut self, vs: &mut ValueStack, e: &mut Expr) -> Result<(), EvalError> {
         match e {
             Expr::Intrinsic(intr) => match intr {
@@ -148,6 +151,7 @@ impl Context {
                     } else {
                         let v = vs.0.pop().unwrap();
                         let qe = match v {
+                            Value::Call(sym) => Expr::Call(sym),
                             Value::Quote(e) => Expr::Quote(e),
                         };
                         vs.0.push(Value::Quote(Box::new(qe)));
@@ -162,9 +166,9 @@ impl Context {
                             expected: 2,
                         })
                     } else {
-                        let e2 = vs.0.pop().unwrap().unquote();
-                        let e1 = vs.0.pop().unwrap().unquote();
-                        let mut new_es = match (*e1, *e2) {
+                        let e2 = self.unquote_value(vs.0.pop().unwrap())?;
+                        let e1 = self.unquote_value(vs.0.pop().unwrap())?;
+                        let mut new_es = match (e1, e2) {
                             (Expr::Compose(mut e1s), Expr::Compose(mut e2s)) => {
                                 e1s.extend(e2s.drain(..));
                                 e1s
@@ -196,16 +200,25 @@ impl Context {
                             expected: 1,
                         })
                     } else {
-                        let e1 = vs.0.pop().unwrap().unquote();
-                        *e = *e1;
+                        let e1 = self.unquote_value(vs.0.pop().unwrap())?;
+                        *e = e1;
                         Ok(())
                     }
                 }
             },
             Expr::Call(sym) => {
                 if let Some(new_e) = self.fns.get(sym) {
-                    *e = new_e.clone();
-                    Ok(())
+                    match new_e {
+                        Expr::Quote(_) => {
+                            vs.0.push(Value::Call(*sym));
+                            *e = Expr::default();
+                            Ok(())
+                        }
+                        _ => {
+                            *e = new_e.clone();
+                            Ok(())
+                        }
+                    }
                 } else {
                     Err(EvalError::UndefinedFn(*sym))
                 }
@@ -245,9 +258,15 @@ impl Context {
     pub fn compress(&mut self, vs: &mut ValueStack) -> bool {
         let mut compressed = false;
         for v in vs.0.iter_mut() {
-            if let Some(sym) = self.exprs.get(v.unquote_ref()) {
-                *v = Value::Quote(Box::new(Expr::Call(*sym)));
-                compressed = true;
+            match v {
+                Value::Call(_) => {}
+                Value::Quote(e) => {
+                    // TODO: we shouldn't have to clone this expr in order to hash it
+                    if let Some(sym) = self.exprs.get(&Expr::Quote((*e).clone())) {
+                        *v = Value::Call(*sym);
+                        compressed = true;
+                    }
+                }
             }
         }
         compressed

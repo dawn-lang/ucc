@@ -20,6 +20,7 @@ pub enum ResolvedExpr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolvedValue {
+    Call(ResolvedSymbol),
     Quote(Box<ResolvedExpr>),
 }
 
@@ -35,6 +36,27 @@ pub enum ResolvedEvalError {
 pub(crate) trait Resolve {
     type Output;
     fn resolve(&self, interner: &Interner) -> Self::Output;
+}
+
+impl Resolve for () {
+    type Output = ();
+    fn resolve(&self, _: &Interner) -> Self::Output {
+        ()
+    }
+}
+
+impl<T, E> Resolve for Result<T, E>
+where
+    T: Resolve,
+    E: Resolve,
+{
+    type Output = Result<<T as Resolve>::Output, <E as Resolve>::Output>;
+    fn resolve(&self, interner: &Interner) -> Self::Output {
+        match self {
+            Ok(t) => Ok(t.resolve(interner)),
+            Err(e) => Err(e.resolve(interner)),
+        }
+    }
 }
 
 impl Resolve for Symbol {
@@ -62,6 +84,7 @@ impl Resolve for Value {
     type Output = ResolvedValue;
     fn resolve(&self, interner: &Interner) -> Self::Output {
         match self {
+            Value::Call(sym) => ResolvedValue::Call(sym.resolve(interner)),
             Value::Quote(e) => ResolvedValue::Quote(Box::new(e.resolve(interner))),
         }
     }
@@ -144,6 +167,7 @@ impl fmt::Display for ResolvedExpr {
 impl fmt::Display for ResolvedValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ResolvedValue::Call(sym) => sym.fmt(f),
             ResolvedValue::Quote(v) => write!(f, "[{}]", v),
         }
     }

@@ -32,6 +32,57 @@ fn test_small_step() {
 }
 
 #[test]
+fn test_compress() {
+    let cases = [
+        ("⟨[swap drop]⟩", "⟨true⟩", true),
+        ("⟨[drop]⟩", "⟨n0⟩", true),
+        (
+            "⟨[[clone] n0 apply [compose] n0 apply apply]⟩",
+            "⟨n1⟩",
+            true,
+        ),
+        (
+            "⟨[[clone] n1 apply [compose] n1 apply apply]⟩",
+            "⟨n2⟩",
+            true,
+        ),
+        (
+            "⟨[[clone] n2 apply [compose] n2 apply apply]⟩",
+            "⟨n3⟩",
+            true,
+        ),
+        (
+            "⟨[[clone] n3 apply [compose] n3 apply apply]⟩",
+            "⟨n4⟩",
+            true,
+        ),
+    ];
+    for (input_src, expected_src, expected_result) in cases {
+        let mut ctx = Context::default();
+        for fn_def_src in FN_DEF_SRCS.iter() {
+            let fn_def = FnDefParser::new()
+                .parse(&mut ctx.interner, fn_def_src)
+                .unwrap();
+            assert_eq!(ctx.define_fn(fn_def), None);
+        }
+        let mut input = ValueStackParser::new()
+            .parse(&mut ctx.interner, input_src)
+            .unwrap();
+        let expected = ValueStackParser::new()
+            .parse(&mut ctx.interner, expected_src)
+            .unwrap();
+        let result = ctx.compress(&mut input);
+        assert_eq!(
+            (input.resolve(&ctx.interner), result),
+            (expected.resolve(&ctx.interner), expected_result),
+            "Failed on ({}, {})",
+            input_src,
+            expected_src
+        );
+    }
+}
+
+#[test]
 fn test_define_fn() {
     let mut ctx = Context::default();
     let sym = Symbol(ctx.interner.get_or_intern_static("foo"));
@@ -52,42 +103,47 @@ fn test_define_fn() {
 
 #[test]
 fn test_big_step() {
+    const MAX_SMALL_STEPS: usize = 1000;
     let cases = [
-        "⟨[e1] [e2]⟩ swap swap ⇓ ⟨[e1] [e2]⟩",
-        "⟨[v1] [v2]⟩ true ⇓ ⟨[v1]⟩",
-        "⟨[v1] [v2]⟩ false ⇓ ⟨[v2]⟩",
-        "⟨[false] [false]⟩ and ⇓ ⟨[false]⟩",
-        "⟨[false] [true]⟩ and ⇓ ⟨[false]⟩",
-        "⟨[true] [false]⟩ and ⇓ ⟨[false]⟩",
-        "⟨[true] [true]⟩ and ⇓ ⟨[true]⟩",
-        "⟨[v1] [v2]⟩ quote2 ⇓ ⟨[[v1] [v2]]⟩",
-        "⟨[v1] [v2] [v3]⟩ quote3 ⇓ ⟨[[v1] [v2] [v3]]⟩",
-        "⟨[v1] [v2] [v3]⟩ rotate3 ⇓ ⟨[v2] [v3] [v1]⟩",
-        "⟨[v1] [v2] [v3] [v4]⟩ rotate4 ⇓ ⟨[v2] [v3] [v4] [v1]⟩",
-        "⟨[e]⟩ n0 ⇓ ⟨⟩",
-        "⟨[e]⟩ n1 ⇓ ⟨⟩ e",
-        "⟨[e]⟩ n2 ⇓ ⟨⟩ e e",
-        "⟨[e]⟩ n3 ⇓ ⟨⟩ e e e",
-        "⟨[e]⟩ n4 ⇓ ⟨⟩ e e e e",
-        "⟨[n0]⟩ succ ⇓ ⟨[[clone] n0 [compose] n0 apply]⟩",
-        "⟨[n1]⟩ succ ⇓ ⟨[[clone] n1 [compose] n1 apply]⟩",
-        "⟨[e] [n0]⟩ apply ⇓ ⟨⟩",
-        "⟨[e] [n0]⟩ succ apply ⇓ ⟨⟩ e",
-        "⟨[e] [n0]⟩ succ succ apply ⇓ ⟨⟩ e e",
-        "⟨[e] [n0] [n0]⟩ add apply ⇓ ⟨⟩",
-        "⟨[e] [n0] [n1]⟩ add apply ⇓ ⟨⟩ e",
-        "⟨[e] [n1] [n0]⟩ add apply ⇓ ⟨⟩ e",
-        "⟨[e] [n1] [n1]⟩ add apply ⇓ ⟨⟩ e e",
-        "⟨[e] [n1] [n2]⟩ add apply ⇓ ⟨⟩ e e e",
-        "⟨[e] [n2] [n1]⟩ add apply ⇓ ⟨⟩ e e e",
-        "⟨[e] [n2] [n2]⟩ add apply ⇓ ⟨⟩ e e e e",
-        "⟨[e] [n0] [n0]⟩ mul apply ⇓ ⟨⟩",
-        "⟨[e] [n0] [n1]⟩ mul apply ⇓ ⟨⟩",
-        "⟨[e] [n1] [n0]⟩ mul apply ⇓ ⟨⟩",
-        "⟨[e] [n1] [n1]⟩ mul apply ⇓ ⟨⟩ e",
-        "⟨[e] [n1] [n2]⟩ mul apply ⇓ ⟨⟩ e e",
-        "⟨[e] [n2] [n1]⟩ mul apply ⇓ ⟨⟩ e e",
-        "⟨[e] [n2] [n2]⟩ mul apply ⇓ ⟨⟩ e e e e",
+        "⟨v1 v2⟩ swap swap ⇓ ⟨v1 v2⟩",
+        "⟨v1 v2⟩ false apply ⇓ ⟨v1⟩",
+        "⟨v1 v2⟩ true apply ⇓ ⟨v2⟩",
+        "⟨false false⟩ or ⇓ ⟨false⟩",
+        "⟨false true⟩ or ⇓ ⟨true⟩",
+        "⟨true false⟩ or ⇓ ⟨true⟩",
+        "⟨true true⟩ or ⇓ ⟨true⟩",
+        "⟨v1 v2⟩ quote2 ⇓ ⟨[v1 v2]⟩",
+        "⟨v1 v2 v3⟩ quote3 ⇓ ⟨[v1 v2 v3]⟩",
+        "⟨v1 v2 v3⟩ rotate3 ⇓ ⟨v2 v3 v1⟩",
+        "⟨v1 v2 v3 v4⟩ rotate4 ⇓ ⟨v2 v3 v4 v1⟩",
+        "⟨[v1] [v2]⟩ compose2 ⇓ ⟨[v1 v2]⟩",
+        "⟨[v1] [v2] [v3]⟩ compose3 ⇓ ⟨[v1 v2 v3]⟩",
+        "⟨[v1] [v2] [v3] [v4]⟩ compose4 ⇓ ⟨[v1 v2 v3 v4]⟩",
+        "⟨[v1] [v2] [v3] [v4] [v5]⟩ compose5 ⇓ ⟨[v1 v2 v3 v4 v5]⟩",
+        "⟨[e]⟩ n0 apply ⇓ ⟨⟩",
+        "⟨[e]⟩ n1 apply ⇓ ⟨⟩ e",
+        "⟨[e]⟩ n2 apply ⇓ ⟨⟩ e e",
+        "⟨[e]⟩ n3 apply ⇓ ⟨⟩ e e e",
+        "⟨[e]⟩ n4 apply ⇓ ⟨⟩ e e e e",
+        "⟨[e] n0⟩ succ apply ⇓ ⟨⟩ e",
+        "⟨[e] n0⟩ succ succ apply ⇓ ⟨⟩ e e",
+        "⟨[e] n0⟩ succ succ succ apply ⇓ ⟨⟩ e e e",
+        "⟨[e] n1⟩ succ apply ⇓ ⟨⟩ e e",
+        "⟨[e] n2⟩ succ apply ⇓ ⟨⟩ e e e",
+        "⟨[e] n0 n0⟩ add apply ⇓ ⟨⟩",
+        "⟨[e] n0 n1⟩ add apply ⇓ ⟨⟩ e",
+        "⟨[e] n1 n0⟩ add apply ⇓ ⟨⟩ e",
+        "⟨[e] n1 n1⟩ add apply ⇓ ⟨⟩ e e",
+        "⟨[e] n1 n2⟩ add apply ⇓ ⟨⟩ e e e",
+        "⟨[e] n2 n1⟩ add apply ⇓ ⟨⟩ e e e",
+        "⟨[e] n2 n2⟩ add apply ⇓ ⟨⟩ e e e e",
+        "⟨[e] n0 n0⟩ mul apply ⇓ ⟨⟩",
+        "⟨[e] n0 n1⟩ mul apply ⇓ ⟨⟩",
+        "⟨[e] n1 n0⟩ mul apply ⇓ ⟨⟩",
+        "⟨[e] n1 n1⟩ mul apply ⇓ ⟨⟩ e",
+        "⟨[e] n1 n2⟩ mul apply ⇓ ⟨⟩ e e",
+        "⟨[e] n2 n1⟩ mul apply ⇓ ⟨⟩ e e",
+        "⟨[e] n2 n2⟩ mul apply ⇓ ⟨⟩ e e e e",
     ];
     let mut ctx = Context::default();
     for fn_def_src in FN_DEF_SRCS.iter() {
@@ -101,9 +157,10 @@ fn test_big_step() {
         let mut ssa = BigStepAssertionParser::new()
             .parse(&mut ctx.interner, case)
             .unwrap();
-        'eval: loop {
+        'eval: for step in 1..=MAX_SMALL_STEPS {
             assert_eq!(
-                ctx.small_step(&mut ssa.0, &mut ssa.1),
+                ctx.small_step(&mut ssa.0, &mut ssa.1)
+                    .resolve(&ctx.interner),
                 Ok(()),
                 "Failed on {}",
                 case
@@ -115,6 +172,8 @@ fn test_big_step() {
             );
             if ssa.0 == ssa.2 && ssa.1 == ssa.3 {
                 break 'eval;
+            } else if step == MAX_SMALL_STEPS {
+                panic!("Reached MAX_SMALL_STEPS on {}", case);
             }
         }
     }

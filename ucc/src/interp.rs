@@ -124,6 +124,7 @@ impl Interp {
             }
             Ok(InterpCommand::Clear) => {
                 self.ctx.fns.clear();
+                self.ctx.exprs.clear();
                 w.write_fmt(format_args!("Definitions cleared.\n"))?;
             }
             Ok(InterpCommand::Reset) => {
@@ -196,6 +197,7 @@ impl Interp {
                         w.write_fmt(format_args!("{:?}\n", err.resolve(&self.ctx.interner)))?;
                         return w.flush();
                     }
+                    // TODO: show function expansion as equality, not as small step?
                     w.write_fmt(format_args!(
                         "⟶ {} {}\n",
                         self.vs.resolve(&self.ctx.interner),
