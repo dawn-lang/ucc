@@ -144,6 +144,7 @@ fn test_big_step() {
         "⟨[e] n1 n2⟩ mul apply ⇓ ⟨⟩ e e",
         "⟨[e] n2 n1⟩ mul apply ⇓ ⟨⟩ e e",
         "⟨[e] n2 n2⟩ mul apply ⇓ ⟨⟩ e e e e",
+        "⟨⟩ [clone apply] clone apply ⇓ ⟨[clone apply]⟩ clone apply",
     ];
     let mut ctx = Context::default();
     for fn_def_src in FN_DEF_SRCS.iter() {
