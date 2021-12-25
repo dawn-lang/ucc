@@ -109,7 +109,6 @@ match {
     r"compose" => COMPOSE,
     r"apply" => APPLY,
     r"fn" => FN,
-    r":eval" => COLON_EVAL,
     r":trace" => COLON_TRACE,
     r":show" => COLON_SHOW,
     r":list" => COLON_LIST,
